@@ -69,7 +69,7 @@ namespace FFXIV_TexTools2.IO
         {
             List<TreeNode> UINodes = new List<TreeNode>()
             {
-                MakeMapsList(), MakeActionsList(), itemIconNode, MakeStatusList(), MakeHUDList(), MakeLoadingImageList(), MakeMapSymbolList(), MakeOnlineStatusList(), MakeWeatherList()
+                MakeMapsList(), MakeActionsList(), itemIconNode, MakeStatusList(),  MakeLoadingImageList(), MakeMapSymbolList(), MakeOnlineStatusList(), MakeWeatherList() ,  MakeHUDList()
             };
 
             return UINodes;
@@ -377,12 +377,14 @@ namespace FFXIV_TexTools2.IO
         public static TreeNode MakeHUDList()
         {
             var uldList = Properties.Resources.uldpaths.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
+            if (Strings.Language == "chs")
+                uldList = Properties.Resources.uldpaths_chs.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);   // load uldList_chs
 
             var uldFolder = "ui/uld/";
 
             TreeNode HUDNode = new TreeNode() { Name = "HUD" };
             Dictionary<string, TreeNode> HUDDict = new Dictionary<string, TreeNode>();
-
+     
             foreach (var uld in uldList)
             {
                 ItemData item = new ItemData();
@@ -902,6 +904,7 @@ namespace FFXIV_TexTools2.IO
             actionBytes = Helper.GetDecompressedEXDData(Helper.GetEXDOffset(FFCRC.GetHash(Strings.ExdFolder), FFCRC.GetHash(actionFile)));
             TreeNode craftNode = new TreeNode() { Name = Strings.Craft };
 
+           
             using (BinaryReader br = new BinaryReader(new MemoryStream(actionBytes)))
             {
                 br.ReadBytes(8);
@@ -931,7 +934,9 @@ namespace FFXIV_TexTools2.IO
 
                         item.Icon = iconNum.ToString();
 
-                        br.ReadBytes(10);
+                        br.ReadBytes(10);  
+                        if(Strings.Language=="chs")             //adapt to chs
+                        br.BaseStream.Seek(-4, SeekOrigin.Current);
 
                         item.ItemSubCategory = Strings.Craft;
 
@@ -1189,8 +1194,6 @@ namespace FFXIV_TexTools2.IO
                 return statusNode;
             }
         }
-
-
         /// <summary>
         /// Creates a list of Mounts contained in mount_(num)_(language).exd 
         /// </summary>
@@ -1283,13 +1286,14 @@ namespace FFXIV_TexTools2.IO
         public static Dictionary<int, string> ItemUICategory()
         {
             string itemUICatFile = String.Format(Strings.ItemUICategory, Strings.Language);
-
             byte[] itemUICatBytes = Helper.GetDecompressedEXDData(Helper.GetEXDOffset(FFCRC.GetHash(Strings.ExdFolder), FFCRC.GetHash(itemUICatFile)));
 
             Dictionary<int, string> UICategories = new Dictionary<int, string>();
 
             using (BinaryReader br = new BinaryReader(new MemoryStream(itemUICatBytes)))
             {
+                
+
                 br.ReadBytes(8);
                 int offsetTableSize = BitConverter.ToInt32(br.ReadBytes(4).Reverse().ToArray(), 0);
 
@@ -1429,6 +1433,10 @@ namespace FFXIV_TexTools2.IO
             {
                 using (BinaryReader br = new BinaryReader(new MemoryStream(Helper.GetDecompressedEXDData(offset))))
                 {
+                   /*var fs = new FileStream("d:\\1", FileMode.Create);
+                    fs.Write(Helper.GetDecompressedEXDData(offset), 0, Helper.GetDecompressedEXDData(offset).Length);
+                    fs.Close();
+                    debug code*/
                     br.ReadBytes(8);
                     int offsetTableSize = BitConverter.ToInt32(br.ReadBytes(4).Reverse().ToArray(), 0);
 
@@ -1492,10 +1500,17 @@ namespace FFXIV_TexTools2.IO
 
                                 int icon = 0;
 
+                                if(Strings.Language=="chs") //adapt to chs
+                                    br.ReadBytes(2);
+
                                 if (!hasSecondary)
                                 {
                                     br.ReadBytes(90);
+                                    if (Strings.Language == "chs") //adapt to chs
+                                        br.ReadBytes(2);
                                     icon = BitConverter.ToUInt16(br.ReadBytes(2).Reverse().ToArray(), 0);
+                                    if (Strings.Language == "chs") //adapt to chs
+                                        br.BaseStream.Seek(-2, SeekOrigin.Current);
                                 }
                                 else
                                 {
@@ -1506,11 +1521,14 @@ namespace FFXIV_TexTools2.IO
                                 item.Icon = icon.ToString();
 
                                 br.ReadBytes(16);
+                                
 
                                 byte[] slotBytes = br.ReadBytes(4).ToArray();
                                 item.ItemCategory = slotBytes[0].ToString();
 
-                                br.ReadBytes(2);
+                                if(Strings.Language!="chs")  //adapt to chs
+                                    br.ReadBytes(2);
+                                
                                 br.ReadBytes(lastText);
 
                                 item.ItemName = Encoding.UTF8.GetString(br.ReadBytes(entrySize - (lastText + 152))).Replace("\0", "");
@@ -1535,18 +1553,21 @@ namespace FFXIV_TexTools2.IO
 
                                 try
                                 {
-                                    var itemNode = new TreeNode { Name = item.ItemName, ItemData = item };
-                                    var itemCatName = Info.IDSlotName[item.ItemCategory];
+                                    
+                                    if (int.Parse(item.ItemCategory) < 26) //key not fonund
+                                    {var itemNode = new TreeNode { Name = item.ItemName, ItemData = item };
+                                        var itemCatName = Info.IDSlotName[item.ItemCategory];
 
-                                    if (!item.ItemCategory.Equals("6"))
-                                    {
-                                        if (itemDict.ContainsKey(itemCatName))
+                                        if (!item.ItemCategory.Equals("6"))
                                         {
-                                            itemDict[itemCatName]._subNode.Add(itemNode);
-                                        }
-                                        else
-                                        {
-                                            itemDict.Add(itemCatName, new TreeNode() { Name = itemCatName, _subNode = new List<TreeNode>() { itemNode } });
+                                            if (itemDict.ContainsKey(itemCatName))
+                                            {
+                                                itemDict[itemCatName]._subNode.Add(itemNode);
+                                            }
+                                            else
+                                            {
+                                                itemDict.Add(itemCatName, new TreeNode() { Name = itemCatName, _subNode = new List<TreeNode>() { itemNode } });
+                                            }
                                         }
                                     }
                                 }
@@ -1558,18 +1579,23 @@ namespace FFXIV_TexTools2.IO
                             else
                             {
                                 br.ReadBytes(98);
-
+                                if (Strings.Language == "chs")
+                                    br.ReadBytes(4); //adapt to chs
                                 item.Icon = BitConverter.ToUInt16(br.ReadBytes(2).Reverse().ToArray(), 0).ToString();
 
                                 br.ReadBytes(14);
+                                if(Strings.Language=="chs")
+                                br.BaseStream.Seek(-2, SeekOrigin.Current);//adapt to chs
 
                                 var someByte = br.ReadByte();
-
+                               
                                 item.ItemSubCategory = UICategoryDict[someByte];
 
                                 br.ReadBytes(7);
 
                                 br.ReadBytes(lastText);
+                                if (Strings.Language == "chs")
+                                    br.BaseStream.Seek(-2, SeekOrigin.Current); //adapt to chs
 
                                 item.ItemName = Encoding.UTF8.GetString(br.ReadBytes(entrySize - (lastText + 152))).Replace("\0", "");
 

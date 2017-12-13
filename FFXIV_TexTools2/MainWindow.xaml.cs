@@ -192,6 +192,22 @@ namespace FFXIV_TexTools2
             }
         }
 
+        private void Menu_Chinese_Click(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show("Changing language requires the application to restart. \nRestart now?", "Language Change", MessageBoxButton.OKCancel, MessageBoxImage.Information) == MessageBoxResult.OK)
+            {
+                Properties.Settings.Default.Language = "zh-CHS";
+                Properties.Settings.Default.Save();
+
+                System.Windows.Forms.Application.Restart();
+                Application.Current.Shutdown();
+            }
+            else
+            {
+                Menu_Chinese.IsChecked = false;
+            }
+        }
+
         private void Menu_ModList_Click(object sender, RoutedEventArgs e)
         {
             ModList ml = new ModList();

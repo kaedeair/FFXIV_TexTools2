@@ -50,11 +50,13 @@ namespace FFXIV_TexTools2.ViewModel
         public bool IsJapanese { get { return Properties.Settings.Default.Language.Equals("ja"); } }
         public bool IsGerman { get { return Properties.Settings.Default.Language.Equals("de"); } }
         public bool IsFrench { get { return Properties.Settings.Default.Language.Equals("fr"); } }
+        public bool IsChinese { get { return Properties.Settings.Default.Language.Equals("zh-CHS"); } }
 
         public bool EnglishEnabled { get { return !Properties.Settings.Default.Language.Equals("en"); } } 
         public bool JapaneseEnabled { get { return !Properties.Settings.Default.Language.Equals("ja"); } } 
         public bool GermanEnabled { get { return !Properties.Settings.Default.Language.Equals("de"); } }
         public bool FrenchEnabled { get { return !Properties.Settings.Default.Language.Equals("fr"); } }
+        public bool ChineseEnabled { get { return !Properties.Settings.Default.Language.Equals("zh-CHS"); } }
 
         public bool IsDX9 { get { return Properties.Settings.Default.DX_Ver.Equals("DX9"); } }
         public bool IsDX11 { get { return Properties.Settings.Default.DX_Ver.Equals("DX11"); } }
@@ -84,7 +86,7 @@ namespace FFXIV_TexTools2.ViewModel
             }
 
             CheckForModList();
-            CheckVersion();
+           // CheckVersion();
             MakeModContainers();
 
             var gameDir = Properties.Settings.Default.FFXIV_Directory.Substring(0, Properties.Settings.Default.FFXIV_Directory.LastIndexOf("sqpack"));
@@ -426,7 +428,7 @@ namespace FFXIV_TexTools2.ViewModel
         /// </summary>
         private void SearchTextChanged()
         {
-            if (SearchText.Length > 2)
+            if (SearchText.Length > 1)    //1 instead of 2 adapt to chs
             {
                 Dictionary<string, TreeNode> catDict = new Dictionary<string, TreeNode>();
 

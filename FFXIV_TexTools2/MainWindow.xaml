@@ -79,6 +79,7 @@
                 <MenuItem x:Name="Menu_Japanese" Header="Japanese" HorizontalAlignment="Left" Width="140" IsCheckable="True" Click="Menu_Japanese_Click" IsEnabled="{Binding JapaneseEnabled}" IsChecked="{Binding IsJapanese, Mode=OneWay}"/>
                 <MenuItem x:Name="Menu_French" Header="French" HorizontalAlignment="Left" Width="140" IsCheckable="True" Click="Menu_French_Click" IsEnabled="{Binding FrenchEnabled}" IsChecked="{Binding IsFrench, Mode=OneWay}"/>
                 <MenuItem x:Name="Menu_German" Header="German" HorizontalAlignment="Left" Width="140" IsCheckable="True" Click="Menu_German_Click" IsEnabled="{Binding GermanEnabled}" IsChecked="{Binding IsGerman, Mode=OneWay}"/>
+                <MenuItem x:Name="Menu_Chinese" Header="Chinese" HorizontalAlignment="Left" Width="140" IsCheckable="True" Click="Menu_Chinese_Click" IsEnabled="{Binding ChineseEnabled}" IsChecked="{Binding IsChinese, Mode=OneWay}"/>
             </MenuItem>
         </Menu>
         <Grid Margin="0,22,0,21">

@@ -9,10 +9,10 @@
       <Value Profile="(Default)" />
     </Setting>
     <Setting Name="Language" Type="System.String" Scope="User">
-      <Value Profile="(Default)">en</Value>
+      <Value Profile="(Default)">zh-CHS</Value>
     </Setting>
     <Setting Name="DX_Ver" Type="System.String" Scope="User">
-      <Value Profile="(Default)">DX11</Value>
+      <Value Profile="(Default)">DX9</Value>
     </Setting>
     <Setting Name="FFXIV_Ver" Type="System.String" Scope="User">
       <Value Profile="(Default)" />

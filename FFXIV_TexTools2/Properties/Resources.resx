@@ -124,4 +124,7 @@
   <data name="_custom" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\_custom.bfx;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
+  <data name="uldpaths_chs" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\uldpaths_chs.txt;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;gb2312</value>
+  </data>
 </root>
