@@ -19,7 +19,6 @@ using FFXIV_TexTools2.IO;
 using FFXIV_TexTools2.Material;
 using FFXIV_TexTools2.Model;
 using FFXIV_TexTools2.Resources;
-using HelixToolkit.Wpf.SharpDX;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -29,6 +28,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
@@ -43,11 +43,12 @@ namespace FFXIV_TexTools2.ViewModel
         List<MDLTEXData> meshData;
         List<ComboBoxInfo> cbi = new List<ComboBoxInfo>();
         Composite3DViewModel CVM;
+        ModelData modelData;
 
         int raceIndex, meshIndex, bodyIndex, partIndex;
         bool raceEnabled, meshEnabled, bodyEnabled, partEnabled, modelRendering, secondModelRendering, thirdModelRendering, is3DLoaded, disposing, modelTabEnabled;
-        bool import3dEnabled, activeEnabled, openEnabled;
-        string selectedCategory, reflectionAmount, modelName, fullPath;
+        bool import3dEnabled, activeEnabled, openEnabled, newCat;
+        string selectedCategory, reflectionAmount, modelName, fullPath, prevCat;
         string activeToggle = "Enable/Disable";
 
         private ObservableCollection<ComboBoxInfo> raceComboInfo = new ObservableCollection<ComboBoxInfo>();
@@ -67,7 +68,6 @@ namespace FFXIV_TexTools2.ViewModel
 
         public string ReflectionAmount { get { return reflectionAmount; } set { reflectionAmount = value; NotifyPropertyChanged("ReflectionAmount"); } }
         public string ActiveToggle { get { return activeToggle; } set { activeToggle = value; NotifyPropertyChanged("ActiveToggle"); } }
-
 
         public bool RaceEnabled { get { return raceEnabled; } set { raceEnabled = value; NotifyPropertyChanged("RaceEnabled"); } }
         public bool MeshEnabled { get { return meshEnabled; } set { meshEnabled = value; NotifyPropertyChanged("MeshEnabled"); } }
@@ -97,8 +97,14 @@ namespace FFXIV_TexTools2.ViewModel
             disposing = true;
             cbi.Clear();
 
+            prevCat = selectedCategory;
             selectedItem = item;
             selectedCategory = category;
+
+            if (!selectedCategory.Equals(prevCat))
+            {
+                newCat = true;
+            }
 
             try
             {
@@ -198,7 +204,7 @@ namespace FFXIV_TexTools2.ViewModel
             }
             catch (Exception ex)
             {
-                MessageBox.Show("[Main] Model Error \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                FlexibleMessageBox.Show("[Main] Model Error \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Debug.WriteLine(ex.StackTrace);
             }
         }
@@ -302,7 +308,7 @@ namespace FFXIV_TexTools2.ViewModel
 
             try
             {
-                var result = SaveModel.SaveCollada(selectedCategory, modelName, selectedItem.ItemName, meshData, meshList);
+                var result = SaveModel.SaveCollada(selectedCategory, modelName, selectedItem.ItemName, meshData, meshList, modelData);
                 if (result)
                 {
                     Import3DEnabled = true;
@@ -310,7 +316,7 @@ namespace FFXIV_TexTools2.ViewModel
             }
             catch (Exception ex)
             {
-                MessageBox.Show("[Collada] Error saving .dae File \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                FlexibleMessageBox.Show("[Collada] Error saving .dae File \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Debug.WriteLine(ex.StackTrace);
             }
 
@@ -331,8 +337,11 @@ namespace FFXIV_TexTools2.ViewModel
         /// <param name="obj"></param>
         private void ImportOBJ(object obj)
         {
-            ImportModel.ImportDAE(selectedCategory, selectedItem.ItemName, modelName, SelectedMesh.ID, fullPath, meshList[0].BoneStrings);
-            UpdateModel(selectedItem, selectedCategory);
+            if (!Helper.IsIndexLocked(true))
+            {
+                ImportModel.ImportDAE(selectedCategory, selectedItem.ItemName, modelName, SelectedMesh.ID, fullPath, meshList[0].BoneStrings, modelData);
+                UpdateModel(selectedItem, selectedCategory);
+            }
         }
 
         /// <summary>
@@ -349,49 +358,53 @@ namespace FFXIV_TexTools2.ViewModel
         /// <param name="obj"></param>
         private void RevertOBJ(object obj)
         {
-            JsonEntry modEntry = null;
-            string line;
-
-            try
+            if (!Helper.IsIndexLocked(true))
             {
-                using (StreamReader sr = new StreamReader(Info.modListDir))
+
+                JsonEntry modEntry = null;
+                string line;
+
+                try
                 {
-                    while ((line = sr.ReadLine()) != null)
+                    using (StreamReader sr = new StreamReader(Properties.Settings.Default.Modlist_Directory))
                     {
-                        modEntry = JsonConvert.DeserializeObject<JsonEntry>(line);
-                        if (modEntry.fullPath.Equals(fullPath))
+                        while ((line = sr.ReadLine()) != null)
                         {
-                            break;
+                            modEntry = JsonConvert.DeserializeObject<JsonEntry>(line);
+                            if (modEntry.fullPath.Equals(fullPath))
+                            {
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("[MVM] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-
-            if (modEntry != null)
-            {
-                int offset = 0;
-
-                if (ActiveToggle.Equals("Enable"))
+                catch (Exception ex)
                 {
-                    offset = modEntry.modOffset;
-                    Helper.UpdateIndex(offset, fullPath, Strings.ItemsDat);
-                    Helper.UpdateIndex2(offset, fullPath, Strings.ItemsDat);
-                    ActiveToggle = "Disable";
+                    FlexibleMessageBox.Show("[MVM] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
-                else if (ActiveToggle.Equals("Disable"))
-                {
-                    offset = modEntry.originalOffset;
-                    Helper.UpdateIndex(offset, fullPath, Strings.ItemsDat);
-                    Helper.UpdateIndex2(offset, fullPath, Strings.ItemsDat);
-                    ActiveToggle = "Enable";
-                }
-            }
 
-            UpdateModel(selectedItem, selectedCategory);
+                if (modEntry != null)
+                {
+                    int offset = 0;
+
+                    if (ActiveToggle.Equals("Enable"))
+                    {
+                        offset = modEntry.modOffset;
+                        Helper.UpdateIndex(offset, fullPath, Strings.ItemsDat);
+                        Helper.UpdateIndex2(offset, fullPath, Strings.ItemsDat);
+                        ActiveToggle = "Disable";
+                    }
+                    else if (ActiveToggle.Equals("Disable"))
+                    {
+                        offset = modEntry.originalOffset;
+                        Helper.UpdateIndex(offset, fullPath, Strings.ItemsDat);
+                        Helper.UpdateIndex2(offset, fullPath, Strings.ItemsDat);
+                        ActiveToggle = "Enable";
+                    }
+                }
+
+                UpdateModel(selectedItem, selectedCategory);
+            }
         }
 
 
@@ -681,7 +694,14 @@ namespace FFXIV_TexTools2.ViewModel
             }
             else if(type.Equals("monster"))
             {
-                cbi.Add(new ComboBoxInfo() { Name = "1", ID = "1", IsNum = false });
+                if (selectedCategory.Equals(Strings.Pets))
+                {
+                    cbi.AddRange(MTRL.GetMTRLParts(selectedItem, SelectedRace.ID, "", selectedCategory));
+                }
+                else
+                {
+                    cbi.Add(new ComboBoxInfo() { Name = "1", ID = "1", IsNum = false });
+                }
             }
             else if (selectedItem.PrimaryModelID.Equals("9900"))
             {
@@ -769,6 +789,7 @@ namespace FFXIV_TexTools2.ViewModel
                 modelName = mdl.GetModelName();
                 materialStrings = mdl.GetMaterialStrings();
                 fullPath = mdl.GetInternalPath();
+                modelData = mdl.GetModelData();
 
                 cbi.Add(new ComboBoxInfo() { Name = Strings.All, ID = Strings.All, IsNum = false });
 
@@ -794,7 +815,7 @@ namespace FFXIV_TexTools2.ViewModel
             }
             catch (Exception ex)
             {
-                MessageBox.Show("[Main] part 3D Error \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                FlexibleMessageBox.Show("[Main] part 3D Error \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Debug.WriteLine(ex.StackTrace);
             }
         }
@@ -1049,10 +1070,29 @@ namespace FFXIV_TexTools2.ViewModel
                     meshData.Add(mData);
                 }
 
+                
+                // Preserve Camera settings before reset
+                var lookDir = CompositeVM.Camera.LookDirection;
+                var upDir = CompositeVM.Camera.UpDirection;
+                var pos = CompositeVM.Camera.Position;
+
+
+                // Reset 3d View for loading new model
                 CompositeVM = new Composite3DViewModel();
-                CompositeVM.UpdateModel(meshData);
+                CompositeVM.UpdateModel(meshData, selectedItem);
+
+                // Re-apply original camera settings 
+                // Applies when camera is not in the default position 
+                // and when within the same item category
+                if (lookDir.Z != -5 && !newCat)
+                {
+                    CompositeVM.Camera.LookDirection = lookDir;
+                    CompositeVM.Camera.UpDirection = upDir;
+                    CompositeVM.Camera.Position = pos;
+                }
 
                 is3DLoaded = true;
+                newCat = false;
 
                 ReflectionAmount = String.Format("{0:.##}", CompositeVM.CurrentSS);
 
@@ -1079,7 +1119,7 @@ namespace FFXIV_TexTools2.ViewModel
                 bool inModList = false;
                 try
                 {
-                    using (StreamReader sr = new StreamReader(Info.modListDir))
+                    using (StreamReader sr = new StreamReader(Properties.Settings.Default.Modlist_Directory))
                     {
                         while ((line = sr.ReadLine()) != null)
                         {
@@ -1094,7 +1134,7 @@ namespace FFXIV_TexTools2.ViewModel
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("[MVM] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    FlexibleMessageBox.Show("[MVM] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
 
                 if (inModList)
@@ -1216,7 +1256,8 @@ namespace FFXIV_TexTools2.ViewModel
             {
                 if (selectedCategory.Equals(Strings.Pets))
                 {
-                    part = "1";
+                    body = part;
+                    part = SelectedPart.ID;
                 }
                 var info = MTRL.GetMTRLData(selectedItem, race, selectedCategory, part, itemVersion, body, modelID, "0000");
                 return info.Item1;

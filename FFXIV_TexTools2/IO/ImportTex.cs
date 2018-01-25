@@ -20,10 +20,11 @@ using FFXIV_TexTools2.Resources;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Text;
 using System.Windows;
+using System.Windows.Forms;
 
 namespace FFXIV_TexTools2.IO
 {
@@ -51,7 +52,7 @@ namespace FFXIV_TexTools2.IO
 
             if (category.Equals("UI"))
             {
-                savePath = Properties.Settings.Default.Save_Directory + "/" + category + "/" + subCategory + "/" + itemName + "/" + dxPath + ".dds";
+                savePath = Properties.Settings.Default.Save_Directory + "/" + category + "/" + subCategory + "/" + dxPath + ".dds";
             }
 
 
@@ -60,7 +61,7 @@ namespace FFXIV_TexTools2.IO
 
                 try
                 {
-                    using (StreamReader sr = new StreamReader(Info.modListDir))
+                    using (StreamReader sr = new StreamReader(Properties.Settings.Default.Modlist_Directory))
                     {
                         string line;
                         while ((line = sr.ReadLine()) != null)
@@ -77,7 +78,7 @@ namespace FFXIV_TexTools2.IO
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("[Import] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    FlexibleMessageBox.Show("[Import] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
 
                 using (BinaryReader br = new BinaryReader(File.OpenRead(savePath)))
@@ -137,13 +138,13 @@ namespace FFXIV_TexTools2.IO
                     }
                     else
                     {
-                        MessageBox.Show("Incorrect file type \nExpected: " + Info.TextureTypes[texData.Type] + " Given: " + Info.TextureTypes[textureType], "Texture format error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        FlexibleMessageBox.Show("Incorrect file type \nExpected: " + Info.TextureTypes[texData.Type] + " Given: " + Info.TextureTypes[textureType], "Texture format error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
             else
             {
-                MessageBox.Show("Could not find file \n" + savePath, "File read Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                FlexibleMessageBox.Show("Could not find file \n" + savePath, "File read Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
             return offset;
@@ -176,7 +177,7 @@ namespace FFXIV_TexTools2.IO
 
                 try
                 {
-                    using (StreamReader sr = new StreamReader(Info.modListDir))
+                    using (StreamReader sr = new StreamReader(Properties.Settings.Default.Modlist_Directory))
                     {
                         string line;
                         while ((line = sr.ReadLine()) != null)
@@ -194,17 +195,18 @@ namespace FFXIV_TexTools2.IO
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("[Import] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    FlexibleMessageBox.Show("[Import] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
 
 
                 using (BinaryReader br = new BinaryReader(new MemoryStream(Helper.GetType2DecompressedData(offset, datNum, Strings.ItemsDat))))
                 {
+                    bool enableAlpha = false;
                     br.BaseStream.Seek(4, SeekOrigin.Begin);
                     fileSize = br.ReadInt16();
                     short colorDataSize = br.ReadInt16();
                     short textureNameSize = br.ReadInt16();
-                    br.ReadBytes(2);
+                    short toSHPK = br.ReadInt16();
                     byte numOfTextures = br.ReadByte();
                     byte numOfMaps = br.ReadByte();
                     byte numOfColorSets = br.ReadByte();
@@ -214,9 +216,36 @@ namespace FFXIV_TexTools2.IO
 
                     br.BaseStream.Seek(0, SeekOrigin.Begin);
 
-                    mtrlBytes.AddRange(br.ReadBytes(endOfHeader));
-                    mtrlBytes.AddRange(br.ReadBytes(textureNameSize + 4));
-                    br.ReadBytes(colorDataSize);
+                    if (!enableAlpha)
+                    {
+                        mtrlBytes.AddRange(br.ReadBytes(endOfHeader));
+                        mtrlBytes.AddRange(br.ReadBytes(textureNameSize + 4));
+                        br.ReadBytes(colorDataSize);
+                    }
+                    else
+                    {
+                        //Currently in Testing
+                        mtrlBytes.AddRange(br.ReadBytes(4));
+                        br.ReadBytes(2);
+                        mtrlBytes.AddRange(BitConverter.GetBytes((short)(fileSize + 5)));
+                        br.ReadBytes(2);
+                        mtrlBytes.AddRange(BitConverter.GetBytes((short)(colorDataSize)));
+                        br.ReadBytes(2);
+                        var allTextSize = textureNameSize + 5;
+                        mtrlBytes.AddRange(BitConverter.GetBytes((short)(allTextSize)));
+                        br.ReadBytes(2);
+                        mtrlBytes.AddRange(BitConverter.GetBytes((short)(toSHPK)));
+                        mtrlBytes.AddRange(br.ReadBytes(4));
+                        mtrlBytes.AddRange(br.ReadBytes(endOfHeader - 16));
+                        mtrlBytes.AddRange(br.ReadBytes(toSHPK));
+                        var shpkSize = textureNameSize - toSHPK;
+                        br.ReadBytes(14);
+                        mtrlBytes.AddRange(Encoding.UTF8.GetBytes("characterglass.shpk"));
+                        mtrlBytes.AddRange(br.ReadBytes(shpkSize - 14));
+                        mtrlBytes.AddRange(br.ReadBytes(4));
+                        br.ReadBytes(colorDataSize);
+                    }
+
 
                     if (colorDataSize == 544)
                     {
@@ -268,7 +297,7 @@ namespace FFXIV_TexTools2.IO
             }
             else
             {
-                MessageBox.Show("Could not find file \n" + savePath, "File read Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                FlexibleMessageBox.Show("Could not find file \n" + savePath, "File read Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return new Tuple<int, byte[]>(0, null);
             }
 
@@ -301,7 +330,7 @@ namespace FFXIV_TexTools2.IO
 
                 try
                 {
-                    using (StreamReader sr = new StreamReader(Info.modListDir))
+                    using (StreamReader sr = new StreamReader(Properties.Settings.Default.Modlist_Directory))
                     {
                         string line;
                         while ((line = sr.ReadLine()) != null)
@@ -318,7 +347,7 @@ namespace FFXIV_TexTools2.IO
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("[Import] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    FlexibleMessageBox.Show("[Import] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
 
 
@@ -354,7 +383,7 @@ namespace FFXIV_TexTools2.IO
                     }
                     else
                     {
-                        MessageBox.Show("Incorrect file type \nExpected: " + Info.TextureTypes[texData.Type] + " Given: " + Info.TextureTypes[textureType], "Texture format error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        FlexibleMessageBox.Show("Incorrect file type \nExpected: " + Info.TextureTypes[texData.Type] + " Given: " + Info.TextureTypes[textureType], "Texture format error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return 0;
                     }
                 }
@@ -606,6 +635,23 @@ namespace FFXIV_TexTools2.IO
 
             var datOffsetAmount = 16 * int.Parse(datNum);
 
+
+            if (inModList)
+            {
+                if(modEntry.modOffset == 0)
+                {
+                   FlexibleMessageBox.Show("TexTools detected a Mod List entry with a Mod Offset of 0.\n\n" +
+                        "Please submit a bug report along with your modlist file.", "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return 0;
+                }
+                else if (modEntry.originalOffset == 0)
+                {
+                   FlexibleMessageBox.Show("TexTools detected a Mod List entry with an Original Offset of 0.\n\n" +
+                        "Please submit a bug report along with your modlist file.", "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return 0;
+                }
+            }
+
             try
             {
                 using (BinaryWriter bw = new BinaryWriter(File.OpenWrite(modDatPath)))
@@ -616,22 +662,25 @@ namespace FFXIV_TexTools2.IO
                     */
                     if (inModList && data.Count <= modEntry.modSize)
                     {
-                        int sizeDiff = modEntry.modSize - data.Count;
+                        if(modEntry.modOffset != 0)
+                        {
+                            int sizeDiff = modEntry.modSize - data.Count;
 
-                        bw.BaseStream.Seek(modEntry.modOffset - datOffsetAmount, SeekOrigin.Begin);
+                            bw.BaseStream.Seek(modEntry.modOffset - datOffsetAmount, SeekOrigin.Begin);
 
-                        bw.Write(data.ToArray());
+                            bw.Write(data.ToArray());
 
-                        bw.Write(new byte[sizeDiff]);
+                            bw.Write(new byte[sizeDiff]);
 
-                        Helper.UpdateIndex(modEntry.modOffset, internalFilePath, datName);
-                        Helper.UpdateIndex2(modEntry.modOffset, internalFilePath, datName);
+                            Helper.UpdateIndex(modEntry.modOffset, internalFilePath, datName);
+                            Helper.UpdateIndex2(modEntry.modOffset, internalFilePath, datName);
 
-                        offset = modEntry.modOffset;
+                            offset = modEntry.modOffset;
 
-                        dataOverwritten = true;
+                            dataOverwritten = true;
+                        }
                     }
-                    else if(!inModList)
+                    else
                     {
                         int emptyLength = 0;
                         int emptyLine = 0;
@@ -642,46 +691,70 @@ namespace FFXIV_TexTools2.IO
                         */
                         try
                         {
-                            foreach (string line in File.ReadAllLines(Info.modListDir))
+                            foreach (string line in File.ReadAllLines(Properties.Settings.Default.Modlist_Directory))
                             {
                                 JsonEntry emptyEntry = JsonConvert.DeserializeObject<JsonEntry>(line);
 
                                 if (emptyEntry.fullPath.Equals(""))
                                 {
-                                    emptyLength = emptyEntry.modSize;
-
-                                    if (emptyLength > data.Count)
+                                    if(emptyEntry.modOffset != 0)
                                     {
-                                        int sizeDiff = emptyLength - data.Count;
+                                        emptyLength = emptyEntry.modSize;
 
-                                        bw.BaseStream.Seek(emptyEntry.modOffset - datOffsetAmount, SeekOrigin.Begin);
-
-                                        bw.Write(data.ToArray());
-
-                                        bw.Write(new byte[sizeDiff]);
-
-                                        int originalOffset = Helper.UpdateIndex(emptyEntry.modOffset, internalFilePath, datName) * 8;
-                                        Helper.UpdateIndex2(emptyEntry.modOffset, internalFilePath, datName);
-
-                                        JsonEntry replaceEntry = new JsonEntry()
+                                        if (emptyLength > data.Count)
                                         {
-                                            category = category,
-                                            name = itemName,
-                                            fullPath = internalFilePath,
-                                            originalOffset = originalOffset,
-                                            modOffset = emptyEntry.modOffset,
-                                            modSize = emptyEntry.modSize,
-                                            datFile = datName
-                                        };
+                                            int sizeDiff = emptyLength - data.Count;
 
-                                        string[] lines = File.ReadAllLines(Info.modListDir);
-                                        lines[emptyLine] = JsonConvert.SerializeObject(replaceEntry);
-                                        File.WriteAllLines(Info.modListDir, lines);
+                                            bw.BaseStream.Seek(emptyEntry.modOffset - datOffsetAmount, SeekOrigin.Begin);
 
-                                        offset = emptyEntry.modOffset;
+                                            bw.Write(data.ToArray());
 
-                                        dataOverwritten = true;
-                                        break;
+                                            bw.Write(new byte[sizeDiff]);
+
+                                            int originalOffset = Helper.UpdateIndex(emptyEntry.modOffset, internalFilePath, datName) * 8;
+                                            Helper.UpdateIndex2(emptyEntry.modOffset, internalFilePath, datName);
+
+                                            if (inModList)
+                                            {
+                                                originalOffset = modEntry.originalOffset;
+
+                                                JsonEntry replaceOriginalEntry = new JsonEntry()
+                                                {
+                                                    category = String.Empty,
+                                                    name = "Empty Replacement",
+                                                    fullPath = String.Empty,
+                                                    originalOffset = 0,
+                                                    modOffset = modEntry.modOffset,
+                                                    modSize = modEntry.modSize,
+                                                    datFile = Strings.ItemsDat
+                                                };
+
+                                                string[] oLines = File.ReadAllLines(Properties.Settings.Default.Modlist_Directory);
+                                                oLines[lineNum] = JsonConvert.SerializeObject(replaceOriginalEntry);
+                                                File.WriteAllLines(Properties.Settings.Default.Modlist_Directory, oLines);
+                                            }
+
+
+                                            JsonEntry replaceEntry = new JsonEntry()
+                                            {
+                                                category = category,
+                                                name = itemName,
+                                                fullPath = internalFilePath,
+                                                originalOffset = originalOffset,
+                                                modOffset = emptyEntry.modOffset,
+                                                modSize = emptyEntry.modSize,
+                                                datFile = datName
+                                            };
+
+                                            string[] lines = File.ReadAllLines(Properties.Settings.Default.Modlist_Directory);
+                                            lines[emptyLine] = JsonConvert.SerializeObject(replaceEntry);
+                                            File.WriteAllLines(Properties.Settings.Default.Modlist_Directory, lines);
+
+                                            offset = emptyEntry.modOffset;
+
+                                            dataOverwritten = true;
+                                            break;
+                                        }
                                     }
                                 }
                                 emptyLine++;
@@ -689,7 +762,7 @@ namespace FFXIV_TexTools2.IO
                         }
                         catch (Exception ex)
                         {
-                            MessageBox.Show("[Import] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                            FlexibleMessageBox.Show("[Import] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
 
                         if (!dataOverwritten)
@@ -711,69 +784,81 @@ namespace FFXIV_TexTools2.IO
 
                             offset = (int)bw.BaseStream.Position + datOffsetAmount;
 
-                            bw.Write(data.ToArray());
+                            if(offset != 0)
+                            {
+                                bw.Write(data.ToArray());
+                            }
+                            else
+                            {
+                               FlexibleMessageBox.Show("[Import] There was an issue obtaining the .dat4 offset to write data to, try importing again. " +
+                                    "\n\n If the problem persists, please submit a bug report.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("[Import] Error Accessing .dat4 File \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                FlexibleMessageBox.Show("[Import] Error Accessing .dat4 File \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 0;
             }
 
 
             if (!dataOverwritten)
             {
-                int oldOffset = Helper.UpdateIndex(offset, internalFilePath, datName) * 8;
-                Helper.UpdateIndex2(offset, internalFilePath, datName);
-
-                /*
-                 * If the item has been previously modifed, but the new compressed data to be imported is larger than the existing data
-                 * remove the data from the modlist, leaving the offset and size intact for future use
-                */
-                if (inModList && data.Count > modEntry.modSize && modEntry != null)
+                if(offset != 0)
                 {
-                    oldOffset = modEntry.originalOffset;
+                    int oldOffset = Helper.UpdateIndex(offset, internalFilePath, datName) * 8;
+                    Helper.UpdateIndex2(offset, internalFilePath, datName);
 
-                    JsonEntry replaceEntry = new JsonEntry()
+                    /*
+                     * If the item has been previously modifed, but the new compressed data to be imported is larger than the existing data
+                     * remove the data from the modlist, leaving the offset and size intact for future use
+                    */
+                    if (inModList && data.Count > modEntry.modSize && modEntry != null)
                     {
-                        category = String.Empty,
-                        name = String.Empty,
-                        fullPath = String.Empty,
-                        originalOffset = 0,
-                        modOffset = modEntry.modOffset,
-                        modSize = modEntry.modSize,
+                        oldOffset = modEntry.originalOffset;
+
+                        JsonEntry replaceEntry = new JsonEntry()
+                        {
+                            category = String.Empty,
+                            name = String.Empty,
+                            fullPath = String.Empty,
+                            originalOffset = 0,
+                            modOffset = modEntry.modOffset,
+                            modSize = modEntry.modSize,
+                            datFile = datName
+                        };
+
+                        string[] lines = File.ReadAllLines(Properties.Settings.Default.Modlist_Directory);
+                        lines[lineNum] = JsonConvert.SerializeObject(replaceEntry);
+                        File.WriteAllLines(Properties.Settings.Default.Modlist_Directory, lines);
+                    }
+
+                    JsonEntry entry = new JsonEntry()
+                    {
+                        category = category,
+                        name = itemName,
+                        fullPath = internalFilePath,
+                        originalOffset = oldOffset,
+                        modOffset = offset,
+                        modSize = data.Count,
                         datFile = datName
                     };
 
-                    string[] lines = File.ReadAllLines(Info.modListDir);
-                    lines[lineNum] = JsonConvert.SerializeObject(replaceEntry);
-                    File.WriteAllLines(Info.modListDir, lines);
-                }
-
-                JsonEntry entry = new JsonEntry()
-                {
-                    category = category,
-                    name = itemName,
-                    fullPath = internalFilePath,
-                    originalOffset = oldOffset,
-                    modOffset = offset,
-                    modSize = data.Count,
-                    datFile = datName
-                };
-
-                try
-                {
-                    using (StreamWriter modFile = new StreamWriter(Info.modListDir, true))
+                    try
                     {
-                        modFile.BaseStream.Seek(0, SeekOrigin.End);
-                        modFile.WriteLine(JsonConvert.SerializeObject(entry));
+                        using (StreamWriter modFile = new StreamWriter(Properties.Settings.Default.Modlist_Directory, true))
+                        {
+                            modFile.BaseStream.Seek(0, SeekOrigin.End);
+                            modFile.WriteLine(JsonConvert.SerializeObject(entry));
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("[Import] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    catch (Exception ex)
+                    {
+                        FlexibleMessageBox.Show("[Import] Error Accessing .modlist File \n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
 

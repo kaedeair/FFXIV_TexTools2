@@ -21,6 +21,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Forms;
 
 namespace FFXIV_TexTools2.ViewModel
 {
@@ -35,7 +36,7 @@ namespace FFXIV_TexTools2.ViewModel
 
             try
             {
-                foreach (string line in File.ReadAllLines(Info.modListDir))
+                foreach (string line in File.ReadAllLines(Properties.Settings.Default.Modlist_Directory))
                 {
                     JsonEntry entry = JsonConvert.DeserializeObject<JsonEntry>(line);
 
@@ -47,7 +48,7 @@ namespace FFXIV_TexTools2.ViewModel
             }
             catch (Exception e)
             {
-                MessageBox.Show("[VM] Error Accessing .modlist File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                FlexibleMessageBox.Show("[VM] Error Accessing .modlist File \n" + e.Message, "Error", MessageBoxButtons.OK,MessageBoxIcon.Error);
             }
 
 

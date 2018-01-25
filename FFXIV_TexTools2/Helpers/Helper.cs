@@ -24,6 +24,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Windows;
+using System.Windows.Forms;
+
 
 namespace FFXIV_TexTools2.Helpers
 {
@@ -37,69 +39,81 @@ namespace FFXIV_TexTools2.Helpers
         /// </summary>
         /// <param name="offset">Offset to the EXD data.</param>
         /// <returns>The decompressed data.</returns>
-        public static byte[] GetDecompressedEXDData(int offset)
+        public static byte[] GetDecompressedEXDData(int offset, string file)
         {
             List<byte> decompressedData = new List<byte>();
 
             var EXDDatPath = string.Format(Info.datDir, Strings.EXDDat, Info.EXDDatNum);
 
-            using (BinaryReader br = new BinaryReader(File.OpenRead(EXDDatPath)))
+            int datNum = ((offset / 8) & 0x000f) / 2;
+
+            offset = OffsetCorrection(datNum, offset);
+
+            try
             {
-                br.BaseStream.Seek(offset, SeekOrigin.Begin);
-
-                int headerLength = br.ReadInt32();
-                int fileType = br.ReadInt32();
-                int uncompressedSize = br.ReadInt32();
-                br.ReadBytes(8);
-                int parts = br.ReadInt32();
-
-                int endOfHeader = offset + headerLength;
-                int partDataOffset = offset + 24;
-
-                for (int f = 0, g = 0; f < parts; f++)
+                using (BinaryReader br = new BinaryReader(File.OpenRead(EXDDatPath)))
                 {
-                    br.BaseStream.Seek(partDataOffset + g, SeekOrigin.Begin);
-                    int offsetFromHeaderEnd = br.ReadInt32();
-                    int partLength = br.ReadInt16();
-                    int partSize = br.ReadInt16();
-                    int partOffset = endOfHeader + offsetFromHeaderEnd;
+                    br.BaseStream.Seek(offset, SeekOrigin.Begin);
 
-                    br.BaseStream.Seek(partOffset, SeekOrigin.Begin);
+                    int headerLength = br.ReadInt32();
+                    int fileType = br.ReadInt32();
+                    int uncompressedSize = br.ReadInt32();
                     br.ReadBytes(8);
+                    int parts = br.ReadInt32();
 
-                    int partCompressedSize = br.ReadInt32();
-                    int partUncompressedSize = br.ReadInt32();
+                    int endOfHeader = offset + headerLength;
+                    int partDataOffset = offset + 24;
 
-                    if (partCompressedSize == 32000)
+                    for (int f = 0, g = 0; f < parts; f++)
                     {
-                        byte[] uncompressedPartData = br.ReadBytes(partUncompressedSize);
-                        decompressedData.AddRange(uncompressedPartData);
-                    }
-                    else
-                    {
-                        byte[] compressedPartData = br.ReadBytes(partCompressedSize);
-                        byte[] decompressedPartData = new byte[partUncompressedSize];
+                        br.BaseStream.Seek(partDataOffset + g, SeekOrigin.Begin);
+                        int offsetFromHeaderEnd = br.ReadInt32();
+                        int partLength = br.ReadInt16();
+                        int partSize = br.ReadInt16();
+                        int partOffset = endOfHeader + offsetFromHeaderEnd;
 
-                        using (MemoryStream ms = new MemoryStream(compressedPartData))
+                        br.BaseStream.Seek(partOffset, SeekOrigin.Begin);
+                        br.ReadBytes(8);
+
+                        int partCompressedSize = br.ReadInt32();
+                        int partUncompressedSize = br.ReadInt32();
+
+                        if (partCompressedSize == 32000)
                         {
-                            using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
-                            {
-                                int count = ds.Read(decompressedPartData, 0x00, partUncompressedSize);
-                            }
+                            byte[] uncompressedPartData = br.ReadBytes(partUncompressedSize);
+                            decompressedData.AddRange(uncompressedPartData);
                         }
-                        decompressedData.AddRange(decompressedPartData);
-                    }
-                    g += 8;
-                }
+                        else
+                        {
+                            byte[] compressedPartData = br.ReadBytes(partCompressedSize);
+                            byte[] decompressedPartData = new byte[partUncompressedSize];
 
-                if (decompressedData.Count < uncompressedSize)
-                {
-                    int difference = uncompressedSize - decompressedData.Count;
-                    byte[] padding = new byte[difference];
-                    Array.Clear(padding, 0, difference);
-                    decompressedData.AddRange(padding);
+                            using (MemoryStream ms = new MemoryStream(compressedPartData))
+                            {
+                                using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
+                                {
+                                    int count = ds.Read(decompressedPartData, 0x00, partUncompressedSize);
+                                }
+                            }
+                            decompressedData.AddRange(decompressedPartData);
+                        }
+                        g += 8;
+                    }
+
+                    if (decompressedData.Count < uncompressedSize)
+                    {
+                        int difference = uncompressedSize - decompressedData.Count;
+                        byte[] padding = new byte[difference];
+                        Array.Clear(padding, 0, difference);
+                        decompressedData.AddRange(padding);
+                    }
                 }
             }
+            catch(Exception e)
+            {
+                DisplayError(e, "EXD Data", true, EXDDatPath, offset);
+            }
+
 
             return decompressedData.ToArray();
         }
@@ -124,125 +138,133 @@ namespace FFXIV_TexTools2.Helpers
 
             var datPath = string.Format(Info.datDir, datName, datNum);
 
-            using (BinaryReader br = new BinaryReader(File.OpenRead(datPath)))
+            try
             {
-                br.BaseStream.Seek(offset, SeekOrigin.Begin);
-
-                int headerLength = br.ReadInt32();
-                int fileType = br.ReadInt32();
-                int uncompressedFileSize = br.ReadInt32();
-                br.ReadBytes(8);
-                mipMapCount = br.ReadInt32();
-
-
-                int endOfHeader = offset + headerLength;
-                int mipMapInfoOffset = offset + 24;
-
-                br.BaseStream.Seek(endOfHeader + 4, SeekOrigin.Begin);
-
-                textureType = br.ReadInt32();
-                width = br.ReadInt16();
-                height = br.ReadInt16();
-
-                for (int i = 0, j = 0; i < mipMapCount; i++)
+                using (BinaryReader br = new BinaryReader(File.OpenRead(datPath)))
                 {
-                    br.BaseStream.Seek(mipMapInfoOffset + j, SeekOrigin.Begin);
+                    br.BaseStream.Seek(offset, SeekOrigin.Begin);
 
-                    int offsetFromHeaderEnd = br.ReadInt32();
-                    int mipMapLength = br.ReadInt32();
-                    int mipMapSize = br.ReadInt32();
-                    int mipMapStart = br.ReadInt32();
-                    int mipMapParts = br.ReadInt32();
-
-                    int mipMapPartOffset = endOfHeader + offsetFromHeaderEnd;
-
-                    br.BaseStream.Seek(mipMapPartOffset, SeekOrigin.Begin);
-
+                    int headerLength = br.ReadInt32();
+                    int fileType = br.ReadInt32();
+                    int uncompressedFileSize = br.ReadInt32();
                     br.ReadBytes(8);
-                    int compressedSize = br.ReadInt32();
-                    int uncompressedSize = br.ReadInt32();
+                    mipMapCount = br.ReadInt32();
 
-                    if (mipMapParts > 1)
+
+                    int endOfHeader = offset + headerLength;
+                    int mipMapInfoOffset = offset + 24;
+
+                    br.BaseStream.Seek(endOfHeader + 4, SeekOrigin.Begin);
+
+                    textureType = br.ReadInt32();
+                    width = br.ReadInt16();
+                    height = br.ReadInt16();
+
+                    for (int i = 0, j = 0; i < mipMapCount; i++)
                     {
-                        byte[] compressedData = br.ReadBytes(compressedSize);
-                        byte[] decompressedPartData = new byte[uncompressedSize];
+                        br.BaseStream.Seek(mipMapInfoOffset + j, SeekOrigin.Begin);
 
-                        using (MemoryStream ms = new MemoryStream(compressedData))
+                        int offsetFromHeaderEnd = br.ReadInt32();
+                        int mipMapLength = br.ReadInt32();
+                        int mipMapSize = br.ReadInt32();
+                        int mipMapStart = br.ReadInt32();
+                        int mipMapParts = br.ReadInt32();
+
+                        int mipMapPartOffset = endOfHeader + offsetFromHeaderEnd;
+
+                        br.BaseStream.Seek(mipMapPartOffset, SeekOrigin.Begin);
+
+                        br.ReadBytes(8);
+                        int compressedSize = br.ReadInt32();
+                        int uncompressedSize = br.ReadInt32();
+
+                        if (mipMapParts > 1)
                         {
-                            using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
-                            {
-                                ds.Read(decompressedPartData, 0x00, uncompressedSize);
-                            }
-                        }
-
-                        decompressedData.AddRange(decompressedPartData);
-
-                        for (int k = 1; k < mipMapParts; k++)
-                        {
-                            byte check = br.ReadByte();
-                            while (check != 0x10)
-                            {
-                                check = br.ReadByte();
-                            }
-
-                            br.ReadBytes(7);
-                            compressedSize = br.ReadInt32();
-                            uncompressedSize = br.ReadInt32();
-
-                            if (compressedSize != 32000)
-                            {
-                                compressedData = br.ReadBytes(compressedSize);
-                                decompressedPartData = new byte[uncompressedSize];
-                                using (MemoryStream ms = new MemoryStream(compressedData))
-                                {
-                                    using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
-                                    {
-                                        ds.Read(decompressedPartData, 0x00, uncompressedSize);
-                                    }
-                                }
-                                decompressedData.AddRange(decompressedPartData);
-                            }
-                            else
-                            {
-                                decompressedPartData = br.ReadBytes(uncompressedSize);
-                                decompressedData.AddRange(decompressedPartData);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (compressedSize != 32000)
-                        {
-                            var compressedData = br.ReadBytes(compressedSize);
-                            var uncompressedData = new byte[uncompressedSize];
+                            byte[] compressedData = br.ReadBytes(compressedSize);
+                            byte[] decompressedPartData = new byte[uncompressedSize];
 
                             using (MemoryStream ms = new MemoryStream(compressedData))
                             {
                                 using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
                                 {
-                                    ds.Read(uncompressedData, 0x00, uncompressedSize);
+                                    ds.Read(decompressedPartData, 0x00, uncompressedSize);
                                 }
                             }
 
-                            decompressedData.AddRange(uncompressedData);
+                            decompressedData.AddRange(decompressedPartData);
+
+                            for (int k = 1; k < mipMapParts; k++)
+                            {
+                                byte check = br.ReadByte();
+                                while (check != 0x10)
+                                {
+                                    check = br.ReadByte();
+                                }
+
+                                br.ReadBytes(7);
+                                compressedSize = br.ReadInt32();
+                                uncompressedSize = br.ReadInt32();
+
+                                if (compressedSize != 32000)
+                                {
+                                    compressedData = br.ReadBytes(compressedSize);
+                                    decompressedPartData = new byte[uncompressedSize];
+                                    using (MemoryStream ms = new MemoryStream(compressedData))
+                                    {
+                                        using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
+                                        {
+                                            ds.Read(decompressedPartData, 0x00, uncompressedSize);
+                                        }
+                                    }
+                                    decompressedData.AddRange(decompressedPartData);
+                                }
+                                else
+                                {
+                                    decompressedPartData = br.ReadBytes(uncompressedSize);
+                                    decompressedData.AddRange(decompressedPartData);
+                                }
+                            }
                         }
                         else
                         {
-                            var decompressedPartData = br.ReadBytes(uncompressedSize);
-                            decompressedData.AddRange(decompressedPartData);
-                        }
-                    }
-                    j = j + 20;
-                }
+                            if (compressedSize != 32000)
+                            {
+                                var compressedData = br.ReadBytes(compressedSize);
+                                var uncompressedData = new byte[uncompressedSize];
 
-                if (decompressedData.Count < uncompressedFileSize)
-                {
-                    int difference = uncompressedFileSize - decompressedData.Count;
-                    byte[] padding = new byte[difference];
-                    Array.Clear(padding, 0, difference);
-                    decompressedData.AddRange(padding);
+                                using (MemoryStream ms = new MemoryStream(compressedData))
+                                {
+                                    using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
+                                    {
+                                        ds.Read(uncompressedData, 0x00, uncompressedSize);
+                                    }
+                                }
+
+                                decompressedData.AddRange(uncompressedData);
+                            }
+                            else
+                            {
+                                var decompressedPartData = br.ReadBytes(uncompressedSize);
+                                decompressedData.AddRange(decompressedPartData);
+                            }
+                        }
+                        j = j + 20;
+                    }
+
+                    if (decompressedData.Count < uncompressedFileSize)
+                    {
+                        int difference = uncompressedFileSize - decompressedData.Count;
+                        byte[] padding = new byte[difference];
+                        Array.Clear(padding, 0, difference);
+                        decompressedData.AddRange(padding);
+                    }
                 }
             }
+            catch(Exception e)
+            {
+                DisplayError(e, "4 Data", true, datPath, offset);
+            }
+
 
             return decompressedData.ToArray();
         }
@@ -265,51 +287,59 @@ namespace FFXIV_TexTools2.Helpers
             byte[] decompressedData;
             List<byte> type2Bytes = new List<byte>();
 
-            using(BinaryReader br = new BinaryReader(File.OpenRead(datPath)))
+            try
             {
-                br.BaseStream.Seek(offset, SeekOrigin.Begin);
-
-                int headerLength = br.ReadInt32();
-
-                br.ReadBytes(16);
-
-                int dataBlockCount = br.ReadInt32();
-
-                for (int i = 0;  i < dataBlockCount; i++)
+                using (BinaryReader br = new BinaryReader(File.OpenRead(datPath)))
                 {
-                    br.BaseStream.Seek(offset + (24 + (8 * i)), SeekOrigin.Begin);
+                    br.BaseStream.Seek(offset, SeekOrigin.Begin);
 
-                    int dataBlockOffset = br.ReadInt32();
+                    int headerLength = br.ReadInt32();
 
-                    br.BaseStream.Seek(offset + headerLength + dataBlockOffset, SeekOrigin.Begin);
+                    br.ReadBytes(16);
 
-                    br.ReadBytes(8);
+                    int dataBlockCount = br.ReadInt32();
 
-                    int compressedSize = br.ReadInt32();
-                    int uncompressedSize = br.ReadInt32();
-
-                    if(compressedSize == 32000)
+                    for (int i = 0; i < dataBlockCount; i++)
                     {
-                        type2Bytes.AddRange(br.ReadBytes(uncompressedSize));
-                    }
-                    else
-                    {
-                        byte[] compressedData = br.ReadBytes(compressedSize);
+                        br.BaseStream.Seek(offset + (24 + (8 * i)), SeekOrigin.Begin);
 
-                        decompressedData = new byte[uncompressedSize];
+                        int dataBlockOffset = br.ReadInt32();
 
-                        using (MemoryStream ms = new MemoryStream(compressedData))
+                        br.BaseStream.Seek(offset + headerLength + dataBlockOffset, SeekOrigin.Begin);
+
+                        br.ReadBytes(8);
+
+                        int compressedSize = br.ReadInt32();
+                        int uncompressedSize = br.ReadInt32();
+
+                        if (compressedSize == 32000)
                         {
-                            using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
-                            {
-                                int count = ds.Read(decompressedData, 0, uncompressedSize);
-                            }
+                            type2Bytes.AddRange(br.ReadBytes(uncompressedSize));
                         }
+                        else
+                        {
+                            byte[] compressedData = br.ReadBytes(compressedSize);
 
-                        type2Bytes.AddRange(decompressedData);
+                            decompressedData = new byte[uncompressedSize];
+
+                            using (MemoryStream ms = new MemoryStream(compressedData))
+                            {
+                                using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
+                                {
+                                    int count = ds.Read(decompressedData, 0, uncompressedSize);
+                                }
+                            }
+
+                            type2Bytes.AddRange(decompressedData);
+                        }
                     }
                 }
             }
+            catch(Exception e)
+            {
+                DisplayError(e, "2 Data", true, datPath, offset);
+            }
+
             return type2Bytes.ToArray();
         }
 
@@ -328,97 +358,107 @@ namespace FFXIV_TexTools2.Helpers
             var datPath = string.Format(Info.datDir, datName, datNum);
 
             List<byte> byteList = new List<byte>();
-            int meshCount, materialCount;
+            int meshCount = 0;
+            int materialCount = 0;
 
-            using (BinaryReader br = new BinaryReader(File.OpenRead(datPath)))
+            try
             {
-                br.BaseStream.Seek(offset, SeekOrigin.Begin);
-
-                int headerLength = br.ReadInt32();
-                int fileType = br.ReadInt32();
-                int decompressedSize = br.ReadInt32();
-                br.ReadBytes(8);
-                int parts = br.ReadInt16();
-
-                int endOfHeader = offset + headerLength;
-
-                byteList.AddRange(new byte[68]);
-
-                br.BaseStream.Seek(offset + 24, SeekOrigin.Begin);
-
-                int[] chunkUncompSizes = new int[11];
-                int[] chunkLengths = new int[11];
-                int[] chunkOffsets = new int[11];
-                int[] chunkBlockStart = new int[11];
-                int[] chunkNumBlocks = new int[11];
-
-                for (int i = 0; i < 11; i++)
+                using (BinaryReader br = new BinaryReader(File.OpenRead(datPath)))
                 {
-                    chunkUncompSizes[i] = br.ReadInt32();
-                }
-                for (int i = 0; i < 11; i++)
-                {
-                    chunkLengths[i] = br.ReadInt32();
-                }
-                for (int i = 0; i < 11; i++)
-                {
-                    chunkOffsets[i] = br.ReadInt32();
-                }
-                for (int i = 0; i < 11; i++)
-                {
-                    chunkBlockStart[i] = br.ReadInt16();
-                }
-                int totalBlocks = 0;
-                for (int i = 0; i < 11; i++)
-                {
-                    chunkNumBlocks[i] = br.ReadInt16();
+                    br.BaseStream.Seek(offset, SeekOrigin.Begin);
 
-                    totalBlocks += chunkNumBlocks[i];
-                }
+                    int headerLength = br.ReadInt32();
+                    int fileType = br.ReadInt32();
+                    int decompressedSize = br.ReadInt32();
+                    int buffer1 = br.ReadInt32();
+                    int buffer2 = br.ReadInt32();
+                    int parts = br.ReadInt16();
 
-                meshCount = br.ReadInt16();
-                materialCount = br.ReadInt16();
+                    int endOfHeader = offset + headerLength;
 
-                br.ReadBytes(4);
+                    byteList.AddRange(new byte[68]);
 
-                int[] blockSizes = new int[totalBlocks];
+                    br.BaseStream.Seek(offset + 24, SeekOrigin.Begin);
 
-                for (int i = 0; i < totalBlocks; i++)
-                {
-                    blockSizes[i] = br.ReadInt16();
-                }
+                    int[] chunkUncompSizes = new int[11];
+                    int[] chunkLengths = new int[11];
+                    int[] chunkOffsets = new int[11];
+                    int[] chunkBlockStart = new int[11];
+                    int[] chunkNumBlocks = new int[11];
 
-                br.BaseStream.Seek(offset + headerLength + chunkOffsets[0], SeekOrigin.Begin);
-
-                for (int i = 0; i < totalBlocks; i++)
-                {
-                    int lastPos = (int)br.BaseStream.Position;
-
-                    br.ReadBytes(8);
-
-                    int partCompSize = br.ReadInt32();
-                    int partDecompSize = br.ReadInt32();
-
-                    if (partCompSize == 32000)
+                    for (int i = 0; i < 11; i++)
                     {
-                        byteList.AddRange(br.ReadBytes(partDecompSize));
+                        chunkUncompSizes[i] = br.ReadInt32();
                     }
-                    else
+                    for (int i = 0; i < 11; i++)
                     {
-                        byte[] partDecompBytes = new byte[partDecompSize];
-                        using (MemoryStream ms = new MemoryStream(br.ReadBytes(partCompSize)))
+                        chunkLengths[i] = br.ReadInt32();
+                    }
+                    for (int i = 0; i < 11; i++)
+                    {
+                        chunkOffsets[i] = br.ReadInt32();
+                    }
+                    for (int i = 0; i < 11; i++)
+                    {
+                        chunkBlockStart[i] = br.ReadInt16();
+                    }
+                    int totalBlocks = 0;
+                    for (int i = 0; i < 11; i++)
+                    {
+                        chunkNumBlocks[i] = br.ReadInt16();
+
+                        totalBlocks += chunkNumBlocks[i];
+                    }
+
+                    meshCount = br.ReadInt16();
+                    materialCount = br.ReadInt16();
+
+                    br.ReadBytes(4);
+
+                    int[] blockSizes = new int[totalBlocks];
+
+                    for (int i = 0; i < totalBlocks; i++)
+                    {
+                        blockSizes[i] = br.ReadInt16();
+                    }
+
+                    br.BaseStream.Seek(offset + headerLength + chunkOffsets[0], SeekOrigin.Begin);
+
+                    for (int i = 0; i < totalBlocks; i++)
+                    {
+                        int lastPos = (int)br.BaseStream.Position;
+
+                        br.ReadBytes(8);
+
+                        int partCompSize = br.ReadInt32();
+                        int partDecompSize = br.ReadInt32();
+
+                        if (partCompSize == 32000)
                         {
-                            using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
-                            {
-                                ds.Read(partDecompBytes, 0, partDecompSize);
-                            }
+                            byteList.AddRange(br.ReadBytes(partDecompSize));
                         }
-                        byteList.AddRange(partDecompBytes);
-                    }
+                        else
+                        {
+                            byte[] partDecompBytes = new byte[partDecompSize];
+                            using (MemoryStream ms = new MemoryStream(br.ReadBytes(partCompSize)))
+                            {
+                                using (DeflateStream ds = new DeflateStream(ms, CompressionMode.Decompress))
+                                {
+                                    ds.Read(partDecompBytes, 0, partDecompSize);
+                                }
+                            }
+                            byteList.AddRange(partDecompBytes);
+                        }
 
-                    br.BaseStream.Seek(lastPos + blockSizes[i], SeekOrigin.Begin);
+                        br.BaseStream.Seek(lastPos + blockSizes[i], SeekOrigin.Begin);
+                    }
                 }
             }
+            catch(Exception e)
+            {
+                DisplayError(e, "3 Data", true, datPath, offset);
+            }
+
 
             return new Tuple<byte[], int, int>(byteList.ToArray(), meshCount, materialCount);
         }
@@ -487,7 +527,7 @@ namespace FFXIV_TexTools2.Helpers
             }
             catch(Exception e)
             {
-                MessageBox.Show("[Helper] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DisplayError(e, "Index File", false);
             }
 
             return itemOffset;
@@ -541,7 +581,7 @@ namespace FFXIV_TexTools2.Helpers
             }
             catch (Exception e)
             {
-                MessageBox.Show("[Helper] Error Accessing Index A File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DisplayError(e, "Index A File", false);
             }
 
             return exdOffset;
@@ -604,7 +644,7 @@ namespace FFXIV_TexTools2.Helpers
             }
             catch (Exception e)
             {
-                MessageBox.Show("[Helper] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DisplayError(e, "Index File", false);
             }
 
             return oldOffset;
@@ -655,7 +695,7 @@ namespace FFXIV_TexTools2.Helpers
             }
             catch (Exception e)
             {
-                MessageBox.Show("[Helper] Error Accessing Index 2 File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DisplayError(e, "Index 2 File", false);
             }
 
         }
@@ -698,7 +738,7 @@ namespace FFXIV_TexTools2.Helpers
             }
             catch (Exception e)
             {
-                MessageBox.Show("[Helper] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DisplayError(e, "Index File", false);
             }
 
             return false;
@@ -749,7 +789,7 @@ namespace FFXIV_TexTools2.Helpers
             }
             catch (Exception e)
             {
-                MessageBox.Show("[Helper] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DisplayError(e, "Index File", false);
             }
 
             return false;
@@ -789,7 +829,7 @@ namespace FFXIV_TexTools2.Helpers
             }
             catch (Exception e)
             {
-                MessageBox.Show("[Helper] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DisplayError(e, "Index File", false);
             }
 
             return parts;
@@ -831,7 +871,7 @@ namespace FFXIV_TexTools2.Helpers
             }
             catch (Exception e)
             {
-                MessageBox.Show("[Helper] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DisplayError(e, "Index File", false);
             }
 
             return raceList;
@@ -876,64 +916,9 @@ namespace FFXIV_TexTools2.Helpers
             }
             catch (Exception e)
             {
-                MessageBox.Show("[Helper] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                DisplayError(e, "Index File", false);
             }
             return fileOffsetDict;
-        }
-
-        /// <summary>
-        /// Checks the index for the number of dats the game will attempt to read
-        /// </summary>
-        /// <returns></returns>
-        public static bool CheckIndex()
-        {
-            bool problemFound = false;
-
-            foreach(var indexFile in Info.ModIndexDict)
-            {
-                var indexPath = string.Format(Info.indexDir, indexFile.Key);
-                var index2Path = string.Format(Info.index2Dir, indexFile.Key);
-
-                try
-                {
-                    using (BinaryReader br = new BinaryReader(File.OpenRead(indexPath)))
-                    {
-                        br.BaseStream.Seek(1104, SeekOrigin.Begin);
-
-                        var numDats = br.ReadInt16();
-
-                        if (numDats != indexFile.Value)
-                        {
-                            problemFound = true;
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show("[Helper] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-
-                try
-                {
-                    using (BinaryReader br = new BinaryReader(File.OpenRead(index2Path)))
-                    {
-                        br.BaseStream.Seek(1104, SeekOrigin.Begin);
-
-                        var numDats = br.ReadInt16();
-
-                        if (numDats != indexFile.Value)
-                        {
-                            problemFound = true;
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show("[Helper] Error Accessing Index 2 File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-
-            return problemFound;
         }
 
         /// <summary>
@@ -956,7 +941,7 @@ namespace FFXIV_TexTools2.Helpers
                 }
                 catch (Exception e)
                 {
-                    MessageBox.Show("[Helper] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    DisplayError(e, "Index File", false);
                 }
 
                 try
@@ -969,7 +954,7 @@ namespace FFXIV_TexTools2.Helpers
                 }
                 catch (Exception e)
                 {
-                    MessageBox.Show("[Helper] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    DisplayError(e, "Index File", false);
                 }
             }
         }
@@ -1014,6 +999,41 @@ namespace FFXIV_TexTools2.Helpers
             return itemType;
         }
 
+        public static bool IsIndexLocked(bool showMessage)
+        {
+            foreach (var indexFile in Info.ModIndexDict)
+            {
+                var indexPath = string.Format(Info.indexDir, indexFile.Key);
+                var index2Path = string.Format(Info.index2Dir, indexFile.Key);
+
+                FileStream stream = null;
+
+                try
+                {
+                    stream = File.Open(index2Path, FileMode.Open);
+                }
+                catch(Exception e)
+                {
+                    if (showMessage)
+                    {
+                       FlexibleMessageBox.Show("Error Accessing Index File\n\n" +
+                        "Please exit the game before proceeding.\n" +
+                        "-----------------------------------------------------\n\n" +
+                        "Error Message:\n" +
+                        e.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+
+                    return true;
+                }
+                finally
+                {
+                    if (stream != null)
+                        stream.Close();
+                }
+            }
+            return false;
+        }
+
         /// <summary>
         /// Converts a strings case to Title Case.
         /// </summary>
@@ -1022,6 +1042,18 @@ namespace FFXIV_TexTools2.Helpers
         public static string ToTitleCase(string mString)
         {
             return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(mString.ToLower());
+        }
+
+        private static void DisplayError(Exception e, string dataType, bool shouldSubmit, string datPath = null, int? offset = null)
+        {
+                var errorText =
+                    "There was an issue reading " + dataType + ", "
+                    + (shouldSubmit ? "submit a bug report with the following:\n" : "") +
+                    "\nError: " + e.Message +
+                    (datPath != null ? "\nPath: " + datPath : "") + 
+                    (offset.HasValue ? "\nOffset: " + offset : "");
+
+                FlexibleMessageBox.Show(errorText, "[Helper] Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         #endregion Misc
     }

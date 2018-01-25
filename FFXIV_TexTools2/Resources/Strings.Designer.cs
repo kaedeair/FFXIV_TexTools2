@@ -169,6 +169,15 @@ namespace FFXIV_TexTools2.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Bahamut-Egi.
+        /// </summary>
+        internal static string Bahamut_Egi {
+            get {
+                return ResourceManager.GetString("Bahamut_Egi", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Beneficial.
         /// </summary>
         internal static string Beneficial {
@@ -430,6 +439,24 @@ namespace FFXIV_TexTools2.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to DX11.
+        /// </summary>
+        internal static string DX11 {
+            get {
+                return ResourceManager.GetString("DX11", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to DX9.
+        /// </summary>
+        internal static string DX9 {
+            get {
+                return ResourceManager.GetString("DX9", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Ears.
         /// </summary>
         internal static string Ears {
@@ -561,6 +588,24 @@ namespace FFXIV_TexTools2.Resources {
         internal static string EquipMtrlFolder {
             get {
                 return ResourceManager.GetString("EquipMtrlFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to skl_c{0}{1}{2}.sklb.
+        /// </summary>
+        internal static string EquipSkelFile {
+            get {
+                return ResourceManager.GetString("EquipSkelFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to chara/human/c{0}/skeleton/{1}/{2}{3}.
+        /// </summary>
+        internal static string EquipSkelFolder {
+            get {
+                return ResourceManager.GetString("EquipSkelFolder", resourceCulture);
             }
         }
         
@@ -1141,24 +1186,6 @@ namespace FFXIV_TexTools2.Resources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to skl_c{0}m{1}.sklb.
-        /// </summary>
-        internal static string MetSkelFIle {
-            get {
-                return ResourceManager.GetString("MetSkelFIle", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to chara/human/c{0}/skeleton/met/m{1}.
-        /// </summary>
-        internal static string MetSkelFolder {
-            get {
-                return ResourceManager.GetString("MetSkelFolder", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to 24.
         /// </summary>
         internal static string Minion_Category {
@@ -1384,6 +1411,15 @@ namespace FFXIV_TexTools2.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Placeholder-Egi.
+        /// </summary>
+        internal static string Placeholder_Egi {
+            get {
+                return ResourceManager.GetString("Placeholder_Egi", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to placename_0_{0}.exd.
         /// </summary>
         internal static string PlaceName {
@@ -1443,6 +1479,15 @@ namespace FFXIV_TexTools2.Resources {
         internal static string Selene {
             get {
                 return ResourceManager.GetString("Selene", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Sephirot-Egi.
+        /// </summary>
+        internal static string Sephirot_Egi {
+            get {
+                return ResourceManager.GetString("Sephirot_Egi", resourceCulture);
             }
         }
         

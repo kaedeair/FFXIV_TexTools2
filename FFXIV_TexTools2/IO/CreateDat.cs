@@ -19,6 +19,8 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Windows;
+using System.Windows.Forms;
+
 
 namespace FFXIV_TexTools2
 {
@@ -50,7 +52,7 @@ namespace FFXIV_TexTools2
             }
             catch (Exception e)
             {
-                MessageBox.Show("[Create] Error Creating .Dat4 File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                FlexibleMessageBox.Show("[Create] Error Creating .Dat4 File \n" + e.Message, "Error", MessageBoxButtons.OK,MessageBoxIcon.Error);
             }
         }
 
@@ -76,7 +78,7 @@ namespace FFXIV_TexTools2
                 }
                 catch (Exception e)
                 {
-                    MessageBox.Show("[Create] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    FlexibleMessageBox.Show("[Create] Error Accessing Index File \n" + e.Message, "Error", MessageBoxButtons.OK,MessageBoxIcon.Error);
                 }
 
 
@@ -90,7 +92,7 @@ namespace FFXIV_TexTools2
                 }
                 catch (Exception e)
                 {
-                    MessageBox.Show("[Create] Error Accessing Index 2 File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    FlexibleMessageBox.Show("[Create] Error Accessing Index 2 File \n" + e.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -160,15 +162,22 @@ namespace FFXIV_TexTools2
         /// </summary>
         public static void CreateModList()
         {
-            try
-            {
-                File.Create(Info.modListDir);
-            }
-            catch (Exception e)
-            {
-                MessageBox.Show("[Create] Error Creating .modlist File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            string md = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "/TexTools";
+            Directory.CreateDirectory(md);
 
+            if(!File.Exists(md + "/TexTools.modlist"))
+            {
+                try
+                {
+                    File.Create(md + "/TexTools.modlist");
+
+                }
+                catch(Exception e)
+                {
+                    FlexibleMessageBox.Show("[Create] Error Creating .modlist File \n" + e.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                }
+            }
         }
     }
 }

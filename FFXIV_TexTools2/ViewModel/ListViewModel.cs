@@ -22,10 +22,10 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Forms;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -41,7 +41,7 @@ namespace FFXIV_TexTools2.ViewModel
         {
             try
             {
-                foreach (string line in File.ReadAllLines(Info.modListDir))
+                foreach (string line in File.ReadAllLines(Properties.Settings.Default.Modlist_Directory))
                 {
                     JsonEntry entry = JsonConvert.DeserializeObject<JsonEntry>(line);
 
@@ -53,7 +53,7 @@ namespace FFXIV_TexTools2.ViewModel
             }
             catch (Exception e)
             {
-                MessageBox.Show("[VM] Error Accessing .modlist File \n" + e.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                FlexibleMessageBox.Show("[VM] Error Accessing .modlist File \n" + e.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
         }
@@ -80,7 +80,7 @@ namespace FFXIV_TexTools2.ViewModel
             {
                 race = entry.fullPath.Substring(entry.fullPath.LastIndexOf('/'));
 
-                if ((entry.fullPath.Contains("_fac_") || entry.fullPath.Contains("_etc_") || entry.fullPath.Contains("_acc_")) && Properties.Settings.Default.DX_Ver.Equals("DX11"))
+                if ((entry.fullPath.Contains("_fac_") || entry.fullPath.Contains("_etc_") || entry.fullPath.Contains("_acc_")) && Properties.Settings.Default.DX_Ver.Equals(Strings.DX11))
                 {
                     race = race.Substring(race.LastIndexOf("--c") + 3, 4);
                 }

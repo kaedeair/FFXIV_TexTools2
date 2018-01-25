@@ -2,37 +2,37 @@
 # FFXIV TexTools 2 by Liinko
 This is a more feature rich WPF implementation of FFXIV TexTools and replaced FFXIV TexTools.
 
-# Current Version: 1.5
+# Current Version: 1.7
 ChangeLog:
 
+For previous ChangeLogs visit http://ffxivtextools.dualwield.net/change_log.html
+
 Application:
- - Added watermark to search box for better visibility.
- - Added open folder icon to Texture and Model tabs for easier access to the items folder.
- 
+ - Added the ability to change directory for Index Backup folder and Modlist file.
+ - Added error checking when reading the games items list.
+ - Added missing Egi (Sephirot & Bahamut).
+ - Added discord link.
+ - Added tutorials link to Help menu.
+ - Added additional checks to prevent writing an offset of 0 to the modlist.
+ - Added additional checks to make sure settings are set correctly
+
 3D:
- - Added emissive texture (Glow) to shader and export.
- - Models importing is now more accurate and free of issues. (Big Thanks to NeoX42)
- - Exporting .dae files with all models is now supported.
-     - Requires AssetCc2.exe from Havok Content Tools (Not Provided)
+ - Removed warning for having extra texture coordinates as that is now taken care of internally.
+ - Added an error message when the AssetCc2.exe may be an unsupported version.
 
 Bug Fixes:
- - Fixed an issue where certain models with vfx textures would not load.
- - Fixed an issue where the models for Selene and Bishop AutoTurret were incorrect.
- - Fixed an issue where certain models were using incorrect textures.
- - Fixed issue where monk weapons that used equipment for secondary model would not display.
- - Fixed an issue where data was not being saved correctly in the modlist in certain scenarios, causing double entries, crashes, and incorrect reverts.
- - Fixed an issue where blank entries appeared in modlist window.
- - Fixed an issue where Egi's were crashing due to missing hyphen.
- - Fixed an issue where the Type dropdown would not empty after changing items.
- - Fixed an Issue where importing a model twice would cause incorrect data to be read.
- - Other minor bug fixes
+ - Fixed an issue where models were not able to be imported if there was a gap in part numbers.
+ - Fixed an issue where data was being read incorrectly on importing a model for a second time.
+ - Fixed an issue where DX version setting would not save, and would be DX11 after restarting the application every time.
+ - Fixed an issue where RGBA toggles were not selectable on UI items.
+ - Fixed an issue where texture variations of Pets were not displaying in 3D view.
+ - Fixed an issue where extra vertex data was not being read correctly on import causing parts of gear to go flying off into space somewhere. 
+ - Fixed an issue where importing a model with a mesh that is referencing a bone that is included in the model but not referenced by the original would cause TexTools to crash.
+ - Other minor bug fixes.
 
-Know Issues:
- - Importing faces appear correctly in TexTools, but crash the game.
- - Some astrologian weapons textures are not mapped correctly in 3D view.
+Known Issues:
+ - Some or All model imports crash the game when using the DX9 client.
+ - UI textures do not show up unless A in RGBA is checked.
 
 Not Yet Implemented:
 * Mod Importer
-
-Using HelixToolkit:
-https://ci.appveyor.com/project/objorke/helix-toolkit/build/1.0.0-unstable.1826.build.906/artifacts
